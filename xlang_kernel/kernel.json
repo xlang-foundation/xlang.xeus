@@ -1,0 +1,9 @@
+{
+    "display_name": "xlang_kernel",
+  "argv": [
+    "P:\\xlang.xeus\\out\\build\\x64-Release\\bin\\xlang_kernel.exe",
+    "-f",
+    "{connection_file}"
+  ],
+    "language": "python"
+}

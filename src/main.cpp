@@ -1,86 +1,80 @@
-#include <string>
-#include "xeus/xinterpreter.hpp"
-#include "xeus/xkernel.hpp"
-#include "xeus/xsystem.hpp"
-#include "xeus/xeus_context.hpp"
-#include "xeus/xhelper.hpp"
-#include "xeus/xkernel_configuration.hpp"
-#include "xlang_kernel.h"
-#include "xlang_server.hpp"
+#include <memory>
 
-std::string _extract_filename(int argc, char* argv[])
+#include <iostream>
+
+#include "xeus/xkernel.hpp"
+#include "xeus/xkernel_configuration.hpp"
+#include "xeus-zmq/xserver_zmq.hpp"
+
+#include "xlang_interpreter.h"
+
+std::string extract_filename(int* argc, char* argv[])
 {
-    std::string res = "";
-    for (int i = 0; i < argc; ++i)
-    {
-        if ((std::string(argv[i]) == "-f") && (i + 1 < argc))
-        {
-            res = argv[i + 1];
-            for (int j = i; j < argc - 2; ++j)
-            {
-                argv[j] = argv[j + 2];
-            }
-            argc -= 2;
-            break;
-        }
-    }
-    return res;
+	std::string res = "";
+	for (int i = 0; i < *argc; ++i)
+	{
+		if ((std::string(argv[i]) == "-f") && (i + 1 < *argc))
+		{
+			res = argv[i + 1];
+			for (int j = i; j < *argc - 2; ++j)
+			{
+				argv[j] = argv[j + 2];
+			}
+			*argc -= 2;
+			break;
+		}
+	}
+	return res;
 }
+
+//inline std::string GetLastErrorMessage() {
+//	DWORD errorCode = GetLastError();
+//	LPSTR errorMessage = nullptr;
+//	DWORD result = FormatMessageA(
+//		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+//		NULL,
+//		errorCode,
+//		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+//		(LPSTR)&errorMessage,
+//		0,
+//		NULL
+//	);
+//
+//	if (result == 0) {
+//		return "Failed to get error message";
+//	}
+//
+//	std::string errorMessageStr(errorMessage);
+//	LocalFree(errorMessage);
+//	return errorMessageStr;
+//}
 
 int main(int argc, char* argv[])
 {
-    std::string file_name = _extract_filename(argc, argv);
+	// Load configuration file
+	std::string file_name = extract_filename(&argc, argv);
+	xeus::xconfiguration config = xeus::load_configuration(file_name);
 
-    auto context = xeus::make_empty_context();
-    using interpreter_ptr = std::unique_ptr<xlang::xlang_kernel>;
-    interpreter_ptr interpreter = interpreter_ptr(new xlang::xlang_kernel());
+	auto context = xeus::make_context<zmq::context_t>();
 
-    if (!file_name.empty())
-    {
-        auto config = xeus::load_configuration(file_name);
-        xeus::xkernel kernel(config,
-            xeus::get_user_name(),
-            std::move(context),
-            std::move(interpreter),
-            xlang::make_xlang_server);
+	// Create interpreter instance
+	using interpreter_ptr = std::unique_ptr<xlang::xlang_interpreter>;
+	interpreter_ptr interpreter = interpreter_ptr(new xlang::xlang_interpreter());
 
-        std::clog <<
-            "Starting xeus-cling kernel...\n\n"
-            "If you want to connect to this kernel from an other client, you can use"
-            " the " + file_name + " file."
-            << std::endl;
+	std::string path = argv[0];
+	for (std::string::size_type pos = 0; (pos = path.find("\\", pos)) != std::string::npos;)
+	{
+		path.replace(pos, 1, "/");
+		pos += 1;
+	}
+	interpreter->set_exe_path(path.substr(0, path.find_last_of("/") + 1));
+	
+	
+	
 
-        kernel.start();
-    }
-    else
-    {
-
-        xeus::xkernel kernel(
-            xeus::get_user_name(),
-            std::move(context),
-            std::move(interpreter),
-            xlang::make_xlang_server);
-
-        const auto& config = kernel.get_config();
-        std::clog <<
-            "Starting xeus-cling kernel...\n\n"
-            "If you want to connect to this kernel from an other client, just copy"
-            " and paste the following content inside of a `kernel.json` file. And then run for example:\n\n"
-            "# jupyter console --existing kernel.json\n\n"
-            "kernel.json\n```\n{\n"
-            "    \"transport\": \"" + config.m_transport + "\",\n"
-            "    \"ip\": \"" + config.m_ip + "\",\n"
-            "    \"control_port\": " + config.m_control_port + ",\n"
-            "    \"shell_port\": " + config.m_shell_port + ",\n"
-            "    \"stdin_port\": " + config.m_stdin_port + ",\n"
-            "    \"iopub_port\": " + config.m_iopub_port + ",\n"
-            "    \"hb_port\": " + config.m_hb_port + ",\n"
-            "    \"signature_scheme\": \"" + config.m_signature_scheme + "\",\n"
-            "    \"key\": \"" + config.m_key + "\"\n"
-            "}\n```\n";
-
-        kernel.start();
-    }
+	// Create kernel instance and start it
+	xeus::xkernel kernel(config, xeus::get_user_name(), std::move(context), std::move(interpreter), xeus::make_xserver_zmq);
+	kernel.start();
 
 	return 0;
 }

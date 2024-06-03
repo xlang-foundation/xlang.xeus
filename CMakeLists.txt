@@ -3,81 +3,51 @@
 #
 cmake_minimum_required (VERSION 3.8)
 
-project ("xlang_kernel")
+#set(CMAKE_BUILD_TYPE Release)
+#set(CMAKE_CONFIGURATION_TYPES Release)
 
-# depends
-set(NLOHMANN_JSON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/nlohmann_json)
-set(XTL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/xtl)
+project (xlang_kernel)
 
-include_directories(${NLOHMANN_JSON_DIR}/include)
-include_directories(${XTL_DIR}/include)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-set(XEUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/xeus)
-set(XEUS_INCLUDE_DIR ${XEUS_DIR}/include)
-set(XEUS_SOURCE_DIR ${XEUS_DIR}/src)
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+configure_file(${CMAKE_SOURCE_DIR}/dll/comerr64.dll ${CMAKE_BINARY_DIR}/bin COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/dll/gssapi64.dll ${CMAKE_BINARY_DIR}/bin COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/dll/k5sprt64.dll ${CMAKE_BINARY_DIR}/bin COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/dll/krb5_64.dll ${CMAKE_BINARY_DIR}/bin COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/dll/libcrypto-3-x64.dll ${CMAKE_BINARY_DIR}/bin COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/dll/libsodium.dll ${CMAKE_BINARY_DIR}/bin COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/dll/libxeus.dll ${CMAKE_BINARY_DIR}/bin COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/dll/libxeus-zmq.dll ${CMAKE_BINARY_DIR}/bin COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/dll/libzmq-mt-4_3_5.dll ${CMAKE_BINARY_DIR}/bin COPYONLY)
 
-include_directories(${XEUS_INCLUDE_DIR})
+FILE(GLOB SRC src/*.cpp src/*.h)
 
-set(XEUS_HEADERS
-    ${XEUS_INCLUDE_DIR}/xeus/xcomm.hpp
-    ${XEUS_INCLUDE_DIR}/xeus/xcontrol_messenger.hpp
-    ${XEUS_INCLUDE_DIR}/xeus/xdebugger.hpp
-    ${XEUS_INCLUDE_DIR}/xeus/xeus.hpp
-    ${XEUS_INCLUDE_DIR}/xeus/xeus_context.hpp
-    ${XEUS_INCLUDE_DIR}/xeus/xguid.hpp
-    ${XEUS_INCLUDE_DIR}/xeus/xhistory_manager.hpp
-    ${XEUS_INCLUDE_DIR}/xeus/xinput.hpp
-    ${XEUS_INCLUDE_DIR}/xeus/xinterpreter.hpp
-    ${XEUS_INCLUDE_DIR}/xeus/xkernel.hpp
-    ${XEUS_INCLUDE_DIR}/xeus/xkernel_configuration.hpp
-    ${XEUS_INCLUDE_DIR}/xeus/xlogger.hpp
-    ${XEUS_INCLUDE_DIR}/xeus/xmessage.hpp
-    ${XEUS_INCLUDE_DIR}/xeus/xhelper.hpp
-    ${XEUS_INCLUDE_DIR}/xeus/xserver.hpp
-    ${XEUS_INCLUDE_DIR}/xeus/xstring_utils.hpp
-    ${XEUS_INCLUDE_DIR}/xeus/xsystem.hpp
+add_executable (${PROJECT_NAME}	${SRC})
+
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_SOURCE_DIR}/third_party
+    ${CMAKE_SOURCE_DIR}/third_party/xeus/include
+    ${CMAKE_SOURCE_DIR}/third_party/xeus-zmq/include
+    ${CMAKE_SOURCE_DIR}/third_party/cppzmq/include
+    ${CMAKE_SOURCE_DIR}/third_party/zeromq/include
 )
 
-set(XEUS_SOURCES
-    ${XEUS_SOURCE_DIR}/xcomm.cpp
-    ${XEUS_SOURCE_DIR}/xcontrol_messenger.cpp
-    ${XEUS_SOURCE_DIR}/xdebugger.cpp
-    ${XEUS_SOURCE_DIR}/xguid.cpp
-    ${XEUS_SOURCE_DIR}/xhistory_manager.cpp
-    ${XEUS_SOURCE_DIR}/xinput.cpp
-    ${XEUS_SOURCE_DIR}/xin_memory_history_manager.hpp
-    ${XEUS_SOURCE_DIR}/xin_memory_history_manager.cpp
-    ${XEUS_SOURCE_DIR}/xinterpreter.cpp
-    ${XEUS_SOURCE_DIR}/xkernel.cpp
-    ${XEUS_SOURCE_DIR}/xkernel_configuration.cpp
-    ${XEUS_SOURCE_DIR}/xkernel_core.cpp
-    ${XEUS_SOURCE_DIR}/xkernel_core.hpp
-    ${XEUS_SOURCE_DIR}/xlogger.cpp
-    ${XEUS_SOURCE_DIR}/xlogger_impl.hpp
-    ${XEUS_SOURCE_DIR}/xlogger_impl.cpp
-    ${XEUS_SOURCE_DIR}/xmessage.cpp
-    ${XEUS_SOURCE_DIR}/xhelper.cpp
-    ${XEUS_SOURCE_DIR}/xmock_interpreter.cpp
-    ${XEUS_SOURCE_DIR}/xmock_interpreter.hpp
-    ${XEUS_SOURCE_DIR}/xserver.cpp
-    ${XEUS_SOURCE_DIR}/xsystem.cpp
-)
-
-include_directories("lib/")
-
-FILE(GLOB SRC "src/*.cpp")
-
-add_compile_definitions(XEUS_STATIC_LIB)
-
-add_executable (${PROJECT_NAME}
-	${XEUS_SOURCES}
-	${SRC}
+target_link_libraries(${PROJECT_NAME} PRIVATE 
+    ${CMAKE_SOURCE_DIR}/third_party/xeus/lib/libxeus.lib
+    ${CMAKE_SOURCE_DIR}/third_party/xeus-zmq/lib/libxeus-zmq.lib
+    ${CMAKE_SOURCE_DIR}/third_party/zeromq/lib/libzmq.lib
+    Ws2_32.lib
 )
 
 if (MSVC)
     target_compile_definitions(${PROJECT_NAME} PUBLIC -DNOMINMAX)
     target_compile_options(${PROJECT_NAME} PUBLIC /DGUID_WINDOWS /MP /bigobj)
     target_compile_options(${PROJECT_NAME} PUBLIC /wd4251 /wd4996)
+    target_compile_options(${PROJECT_NAME} PUBLIC /ZI /Od) #RelWithDebInfo for debug
+    target_link_options(${PROJECT_NAME} PRIVATE /DEBUG /OPT:REF /OPT:ICF) #RelWithDebInfo for debug
 elseif (APPLE)
     target_compile_definitions(${PROJECT_NAME} PUBLIC -DGUID_CFUUID)
 else ()

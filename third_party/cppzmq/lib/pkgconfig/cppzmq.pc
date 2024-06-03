@@ -1,0 +1,9 @@
+prefix="D:/bld/cppzmq_1698741662962/_h_env/Library"
+includedir="D:/bld/cppzmq_1698741662962/_h_env/Library/include"
+
+Name: cppzmq
+Description: C++ binding for libzmq
+URL: https://github.com/zeromq/cppzmq
+Version: 4.10.0
+Requires: libzmq
+Cflags: -I"${includedir}" 
